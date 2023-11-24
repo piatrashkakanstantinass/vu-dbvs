@@ -101,10 +101,10 @@ CREATE FUNCTION FUpdateBlogStatus()
 RETURNS TRIGGER AS $$
 BEGIN
   IF NEW.user_status <> 'OK' THEN
-    UPDATE Blogs SET blog_status = 'HIDDEN', closed_at = CURRENT_TIMESTAMP
+    UPDATE Blogs SET blog_status = 'HIDDEN'
     WHERE user_id = NEW.user_id AND blog_status = 'OPEN';
   ELSE
-    UPDATE Blogs SET blog_status = 'OPEN', closed_at = CURRENT_TIMESTAMP
+    UPDATE Blogs SET blog_status = 'OPEN'
     WHERE user_id = NEW.user_id AND blog_status = 'HIDDEN';
   END IF;
   RETURN NEW;
@@ -133,6 +133,22 @@ BEFORE INSERT OR UPDATE ON Blogs
 FOR EACH ROW
 WHEN (NEW.blog_status = 'OPEN')
 EXECUTE PROCEDURE FValidateBlogStatus();
+
+CREATE FUNCTION FUpdateBlogCloseTimestamp()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.blog_status <> 'OPEN' THEN
+    NEW.closed_at = CURRENT_TIMESTAMP;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER TUpdateBlogCloseTimestamp
+BEFORE UPDATE ON Blogs
+FOR EACH ROW
+WHEN (NEW.blog_status <> 'OPEN')
+EXECUTE PROCEDURE FUpdateBlogCloseTimestamp();
 
 CREATE FUNCTION FValidateCommentCount()
 RETURNS TRIGGER AS $$

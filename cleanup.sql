@@ -11,3 +11,4 @@ DROP TABLE Users;
 DROP FUNCTION FUpdateBlogStatus;
 DROP FUNCTION FValidateBlogStatus;
 DROP FUNCTION FValidateCommentCount;
+DROP FUNCTION FUpdateBlogCloseTimestamp;
