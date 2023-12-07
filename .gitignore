@@ -2,4 +2,5 @@
 .DS_Store
 *.drawio.bkp
 *.drawio.dtmp
-
+venv/
+.env
