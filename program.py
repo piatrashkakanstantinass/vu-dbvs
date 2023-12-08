@@ -291,10 +291,50 @@ def delete_user_and_share_blogs():
         questionary.print("Action performed")
 
 
+def db_list_posts(cursor):
+    global selected_blog_id
+    cursor.execute(
+        "SELECT title, content FROM Posts WHERE blog_id = %s", (selected_blog_id,)
+    )
+    return cursor.fetchall()
+
+
+def list_posts():
+    with DBContext() as cursor:
+        print_posts(db_list_posts(cursor))
+
+
+def print_posts(posts):
+    table = tabulate(
+        posts,
+        headers=["Title", "Content"],
+    )
+    questionary.print(table)
+
+
+post_options_menu = OptionMenu("Post actions")
+post_options_menu.add_option("list posts", list_posts)
+
+
+def go_to_posts():
+    global selected_blog_id
+    with DBContext() as cursor:
+        blog_names = [blog[0] for blog in db_list_blogs(cursor)]
+        if len(blog_names) == 0:
+            questionary.print("No blogs left!")
+            return
+        blog_name = questionary.select("Which blog?", blog_names).unsafe_ask()
+        cursor.execute("SELECT blog_id FROM Blogs WHERE blog_name = %s", (blog_name,))
+        selected_blog_id = cursor.fetchone()[0]
+
+    post_options_menu.display_menu()
+
+
 blog_options_menu = OptionMenu("Blog actions")
 blog_options_menu.add_option("create blog", create_blog)
 blog_options_menu.add_option("list blogs", list_blogs)
 blog_options_menu.add_option("delete blog", delete_blog)
+blog_options_menu.add_option("go to posts", go_to_posts)
 
 
 top_level_options_menu = OptionMenu("Choose action")
