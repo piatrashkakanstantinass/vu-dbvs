@@ -180,6 +180,13 @@ def db_create_blog(blog_name: str, blog_description: str, username: str):
     with DBContext() as cursor:
         cursor.execute(
             """
+            SELECT user_id from USERS WHERE username = %s
+            """,
+            (username,),
+        )
+        user_id = cursor.fetchone()
+        cursor.execute(
+            """
             INSERT INTO Blogs (blog_name, blog_description, user_id)
             VALUES (%s, %s, %s)
             """,
@@ -188,46 +195,28 @@ def db_create_blog(blog_name: str, blog_description: str, username: str):
         cursor.connection.commit()
 
 
-# def db_list_blogs(username: Optional[int] = None):
-#     with DBContext() as cursor:
-#         if user_id is None:
-#             cursor.execute(
-#                 "SELECT blog_id, blog_name, blog_description, blog_status, created_at FROM Blogs"
-#             )
-#         else:
-#             cursor.execute(
-#                 """
-#                 SELECT blog_id, blog_name, blog_description, blog_status, created_at
-#                 FROM Blogs
-#                 WHERE user_id = %s
-#                 """,
-#                 (user_id,),
-#             )
-#         entries = cursor.fetchall()
-#     return entries
+def db_list_blogs():
+    with DBContext() as cursor:
+        cursor.execute(
+            "SELECT blog_name, blog_description, blog_status, username FROM Blogs JOIN Users on Blogs.user_id = Users.user_id"
+        )
+        entries = cursor.fetchall()
+    return entries
 
 
-# def db_update_blog(blog_id: int, new_name: str, new_description: str):
-#     with DBContext() as cursor:
-#         cursor.execute(
-#             """
-#             UPDATE Blogs
-#             SET blog_name = %s, blog_description = %s
-#             WHERE blog_id = %s
-#             """,
-#             (new_name, new_description, blog_id),
-#         )
-#         cursor.connection.commit()
-
-
-# def db_delete_blog(blog_id: int):
-#     with DBContext() as cursor:
-#         cursor.execute("DELETE FROM Blogs WHERE blog_id = %s", (blog_id,))
-#         cursor.connection.commit()
+def db_delete_blog(blog_name: str):
+    with DBContext() as cursor:
+        cursor.execute("SELECT blog_id FROM Blogs WHERE blog_name = %s", (blog_name,))
+        blog_id = cursor.fetchone()
+        cursor.execute("DELETE FROM Posts WHERE blog_id = %s", (blog_id,))
+        cursor.execute("DELETE FROM Blogs WHERE blog_name = %s", (blog_name,))
+        cursor.connection.commit()
 
 
 def pick_username():
     usernames = [user for user, in db_list_usernames()]
+    if len(usernames) == 0:
+        return None
     return questionary.select("Pick user", usernames).unsafe_ask()
 
 
@@ -239,8 +228,32 @@ def create_blog():
     questionary.print("Blog created")
 
 
+def list_blogs():
+    print_blogs(db_list_blogs())
+
+
+def print_blogs(blogs):
+    table = tabulate(
+        blogs,
+        headers=["Blog Name", "Description", "Status", "User"],
+    )
+    questionary.print(table)
+
+
+def delete_blog():
+    blog_names = [blog[0] for blog in db_list_blogs()]
+    if len(blog_names) == 0:
+        questionary.print("No blogs left!")
+        return
+    blog_name = questionary.select("Which blog?", blog_names).unsafe_ask()
+    db_delete_blog(blog_name)
+    questionary.print("Deleted")
+
+
 blog_options_menu = OptionMenu("Blog actions")
 blog_options_menu.add_option("create blog", create_blog)
+blog_options_menu.add_option("list blogs", list_blogs)
+blog_options_menu.add_option("delete blog", delete_blog)
 
 
 top_level_options_menu = OptionMenu("Choose action")
@@ -270,4 +283,7 @@ if __name__ == "__main__":
             questionary.print(
                 "Failed to perform action. Some entities depend on object and should be changed first"
             )
+            continue
+        except psycopg2.errors.RaiseException as e:
+            questionary.print(e.pgerror)
             continue
