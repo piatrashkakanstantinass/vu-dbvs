@@ -210,6 +210,22 @@ def db_delete_blog(cursor, blog_name: str):
     cursor.execute("DELETE FROM Blogs WHERE blog_name = %s", (blog_name,))
 
 
+def db_transfer_blogs_and_delete(cursor, username_to_delete: str, username_to_put: str):
+    user_id_to_delete = db_username_to_id(cursor, username_to_delete)
+    user_id_to_put = db_username_to_id(cursor, username_to_put)
+    cursor.execute(
+        "UPDATE Blogs SET user_id = %s WHERE user_id = %s",
+        (user_id_to_put, user_id_to_delete),
+    )
+    cursor.execute("DELETE FROM Users WHERE user_id = %s", (user_id_to_delete,))
+
+
+def db_username_to_id(cursor, username):
+    cursor.execute("SELECT user_id from Users WHERE username = %s", (username,))
+    usr = cursor.fetchone()
+    return usr[0]
+
+
 def pick_username(cursor):
     usernames = [user for user, in db_list_usernames(cursor)]
     if len(usernames) == 0:
@@ -252,6 +268,29 @@ def delete_blog():
     questionary.print("Deleted")
 
 
+def pick_from_list_and_exclude(prompt, lst):
+    picked = questionary.select(prompt, lst).unsafe_ask()
+    new_lst = [i for i in lst if i != picked]
+    return picked, new_lst
+
+
+def delete_user_and_share_blogs():
+    with DBContext() as cursor:
+        usernames = [user for user, in db_list_usernames(cursor)]
+        if len(usernames) < 2:
+            questionary.print("At least 2 users required")
+            return
+        username_to_delete, left_usernames = pick_from_list_and_exclude(
+            "User to delete:", usernames
+        )
+        username_to_put, left = pick_from_list_and_exclude(
+            "User to give blogs:", left_usernames
+        )
+        db_transfer_blogs_and_delete(cursor, username_to_delete, username_to_put)
+        cursor.connection.commit()
+        questionary.print("Action performed")
+
+
 blog_options_menu = OptionMenu("Blog actions")
 blog_options_menu.add_option("create blog", create_blog)
 blog_options_menu.add_option("list blogs", list_blogs)
@@ -265,6 +304,9 @@ top_level_options_menu.add_option("delete user", delete_user)
 top_level_options_menu.add_option("update user info", update_user)
 top_level_options_menu.add_option("flag user", flag_user)
 top_level_options_menu.add_option("unflag user", unflag_user)
+top_level_options_menu.add_option(
+    "delete user and share blogs", delete_user_and_share_blogs
+)
 top_level_options_menu.add_option("blog actions...", blog_options_menu.display_menu)
 
 
