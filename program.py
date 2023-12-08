@@ -178,60 +178,58 @@ class OptionMenu:
                     callback()
 
 
-def db_create_blog(blog_name: str, blog_description: str, username: str):
-    with DBContext() as cursor:
-        cursor.execute(
-            """
+def db_create_blog(cursor, blog_name: str, blog_description: str, username: str):
+    cursor.execute(
+        """
             SELECT user_id from USERS WHERE username = %s
             """,
-            (username,),
-        )
-        user_id = cursor.fetchone()
-        cursor.execute(
-            """
+        (username,),
+    )
+    user_id = cursor.fetchone()
+    cursor.execute(
+        """
             INSERT INTO Blogs (blog_name, blog_description, user_id)
             VALUES (%s, %s, %s)
             """,
-            (blog_name, blog_description, user_id),
-        )
-        cursor.connection.commit()
+        (blog_name, blog_description, user_id),
+    )
 
 
-def db_list_blogs():
-    with DBContext() as cursor:
-        cursor.execute(
-            "SELECT blog_name, blog_description, blog_status, username FROM Blogs JOIN Users on Blogs.user_id = Users.user_id"
-        )
-        entries = cursor.fetchall()
+def db_list_blogs(cursor):
+    cursor.execute(
+        "SELECT blog_name, blog_description, blog_status, username FROM Blogs JOIN Users on Blogs.user_id = Users.user_id"
+    )
+    entries = cursor.fetchall()
     return entries
 
 
-def db_delete_blog(blog_name: str):
-    with DBContext() as cursor:
-        cursor.execute("SELECT blog_id FROM Blogs WHERE blog_name = %s", (blog_name,))
-        blog_id = cursor.fetchone()
-        cursor.execute("DELETE FROM Posts WHERE blog_id = %s", (blog_id,))
-        cursor.execute("DELETE FROM Blogs WHERE blog_name = %s", (blog_name,))
-        cursor.connection.commit()
+def db_delete_blog(cursor, blog_name: str):
+    cursor.execute("SELECT blog_id FROM Blogs WHERE blog_name = %s", (blog_name,))
+    blog_id = cursor.fetchone()
+    cursor.execute("DELETE FROM Posts WHERE blog_id = %s", (blog_id,))
+    cursor.execute("DELETE FROM Blogs WHERE blog_name = %s", (blog_name,))
 
 
-def pick_username():
-    usernames = [user for user, in db_list_usernames()]
+def pick_username(cursor):
+    usernames = [user for user, in db_list_usernames(cursor)]
     if len(usernames) == 0:
         return None
     return questionary.select("Pick user", usernames).unsafe_ask()
 
 
 def create_blog():
-    username = pick_username()
-    blog_name = questionary.text("Enter blog name:").unsafe_ask()
-    blog_description = questionary.text("Enter blog description:").unsafe_ask()
-    db_create_blog(blog_name, blog_description, username)
+    with DBContext() as cursor:
+        username = pick_username(cursor)
+        blog_name = questionary.text("Enter blog name:").unsafe_ask()
+        blog_description = questionary.text("Enter blog description:").unsafe_ask()
+        db_create_blog(cursor, blog_name, blog_description, username)
+        cursor.connection.commit()
     questionary.print("Blog created")
 
 
 def list_blogs():
-    print_blogs(db_list_blogs())
+    with DBContext() as cursor:
+        print_blogs(db_list_blogs(cursor))
 
 
 def print_blogs(blogs):
@@ -243,12 +241,14 @@ def print_blogs(blogs):
 
 
 def delete_blog():
-    blog_names = [blog[0] for blog in db_list_blogs()]
-    if len(blog_names) == 0:
-        questionary.print("No blogs left!")
-        return
-    blog_name = questionary.select("Which blog?", blog_names).unsafe_ask()
-    db_delete_blog(blog_name)
+    with DBContext() as cursor:
+        blog_names = [blog[0] for blog in db_list_blogs(cursor)]
+        if len(blog_names) == 0:
+            questionary.print("No blogs left!")
+            return
+        blog_name = questionary.select("Which blog?", blog_names).unsafe_ask()
+        db_delete_blog(cursor, blog_name)
+        cursor.connection.commit()
     questionary.print("Deleted")
 
 
@@ -288,4 +288,7 @@ if __name__ == "__main__":
             continue
         except psycopg2.errors.RaiseException as e:
             questionary.print(e.pgerror)
+            continue
+        except psycopg2.errors.UniqueViolation:
+            questionary.print("Object with that name already exists")
             continue
