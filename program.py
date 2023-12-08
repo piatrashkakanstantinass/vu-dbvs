@@ -10,6 +10,8 @@ load_dotenv()
 CONNECTION_STRING = os.getenv("CONNECTION_STRING")
 # dbname = studentu host=pgsql3.mif passowrd=pswd
 
+selected_blog_id = None
+
 
 class DBContext:
     def __enter__(self):
@@ -22,74 +24,68 @@ class DBContext:
         self.conn.close()
 
 
-def db_create_user(username: str, email: str):
-    with DBContext() as cursor:
+def db_create_user(cursor, username: str, email: str):
+    cursor.execute(
+        "INSERT INTO Users (username, email) VALUES (%s, %s)", (username, email)
+    )
+
+
+def db_list_users(cursor, username: Optional[str] = None):
+    if username == None:
         cursor.execute(
-            "INSERT INTO Users (username, email) VALUES (%s, %s)", (username, email)
+            "SELECT username, email, first_name, last_name, user_status FROM Users"
         )
-        cursor.connection.commit()
-
-
-def db_list_users(username: Optional[str] = None):
-    with DBContext() as cursor:
-        if username == None:
-            cursor.execute(
-                "SELECT username, email, first_name, last_name, user_status FROM Users"
-            )
-        else:
-            cursor.execute(
-                "SELECT username, email, first_name, last_name, user_status FROM Users WHERE username = %s",
-                (username,),
-            )
-        entries = cursor.fetchall()
+    else:
+        cursor.execute(
+            "SELECT username, email, first_name, last_name, user_status FROM Users WHERE username = %s",
+            (username,),
+        )
+    entries = cursor.fetchall()
     return entries
 
 
-def db_delete_user(username: str):
-    with DBContext() as cursor:
-        cursor.execute("DELETE FROM Users WHERE username = %s", (username,))
-        cursor.connection.commit()
+def db_delete_user(cursor, username: str):
+    cursor.execute("DELETE FROM Users WHERE username = %s", (username,))
 
 
-def db_update_user_flag(username: str, flag: str):
-    with DBContext() as cursor:
-        cursor.execute(
-            "UPDATE Users SET user_status = %s WHERE username = %s", (flag, username)
-        )
-        cursor.connection.commit()
+def db_update_user_flag(cursor, username: str, flag: str):
+    cursor.execute(
+        "UPDATE Users SET user_status = %s WHERE username = %s", (flag, username)
+    )
 
 
 def db_udpate_user(
-    username: str, new_email: str, new_first_name: str, new_last_name: str
+    cursor, username: str, new_email: str, new_first_name: str, new_last_name: str
 ):
-    with DBContext() as cursor:
-        cursor.execute(
-            "UPDATE Users SET email = %s, first_name = %s, last_name = %s WHERE username = %s",
-            (new_email, new_first_name, new_last_name, username),
-        )
-        cursor.connection.commit()
+    cursor.execute(
+        "UPDATE Users SET email = %s, first_name = %s, last_name = %s WHERE username = %s",
+        (new_email, new_first_name, new_last_name, username),
+    )
 
 
-def db_list_usernames():
-    with DBContext() as cursor:
-        cursor.execute("SELECT username from Users")
-        return cursor.fetchall()
+def db_list_usernames(cursor):
+    cursor.execute("SELECT username from Users")
+    return cursor.fetchall()
 
 
 def create_user():
     username = questionary.text("Pick username:").unsafe_ask()
     email = questionary.text("Pick email:").unsafe_ask()
-    db_create_user(username, email)
+    with DBContext() as cursor:
+        db_create_user(cursor, username, email)
+        cursor.connection.commit()
     questionary.print("User created")
 
 
 def list_users():
-    print_users(db_list_users())
+    with DBContext() as cursor:
+        print_users(db_list_users(cursor))
 
 
 def confirm_user() -> Optional[str]:
     username = questionary.text("Which user? (username)").unsafe_ask()
-    found_users = db_list_users(username)
+    with DBContext() as cursor:
+        found_users = db_list_users(cursor, username)
     if len(found_users) == 0:
         questionary.print("No user found")
         return
@@ -110,7 +106,9 @@ def delete_user():
     username = confirm_user()
     if username == None:
         return
-    db_delete_user(username)
+    with DBContext() as cursor:
+        db_delete_user(cursor, username)
+        cursor.connection.commit()
     questionary.print("Deleted")
 
 
@@ -118,29 +116,33 @@ def update_user():
     username = confirm_user()
     if username == None:
         return
-    (
-        curr_username,
-        curr_email,
-        curr_first_name,
-        curr_last_name,
-        user_status,
-    ) = db_list_users(username)[0]
-    new_email = questionary.text("New email?", default=curr_email).unsafe_ask()
-    new_first_name = questionary.text(
-        "New first name?", default=curr_first_name
-    ).unsafe_ask()
-    new_last_name = questionary.text(
-        "New last name?", default=curr_last_name
-    ).unsafe_ask()
-    db_udpate_user(username, new_email, new_first_name, new_last_name)
-    questionary.print("Updated")
+    with DBContext() as cursor:
+        (
+            curr_username,
+            curr_email,
+            curr_first_name,
+            curr_last_name,
+            user_status,
+        ) = db_list_users(cursor, username)[0]
+        new_email = questionary.text("New email?", default=curr_email).unsafe_ask()
+        new_first_name = questionary.text(
+            "New first name?", default=curr_first_name
+        ).unsafe_ask()
+        new_last_name = questionary.text(
+            "New last name?", default=curr_last_name
+        ).unsafe_ask()
+        db_udpate_user(cursor, username, new_email, new_first_name, new_last_name)
+        cursor.connection.commit()
+        questionary.print("Updated")
 
 
 def handle_flag_change(new_value):
     username = confirm_user()
     if username == None:
         return
-    db_update_user_flag(username, new_value)
+    with DBContext() as cursor:
+        db_update_user_flag(cursor, username, new_value)
+        cursor.connection.commit()
     questionary.print("Updated")
 
 
