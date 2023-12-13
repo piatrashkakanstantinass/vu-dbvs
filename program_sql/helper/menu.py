@@ -47,3 +47,7 @@ class Menu:
                 print("Entry already exists")
             except KeyboardInterrupt:
                 break
+            except psycopg2.errors.CheckViolation as e:
+                print(e.pgerror)
+            except psycopg2.errors.RaiseException as e:
+                print(e.pgerror)

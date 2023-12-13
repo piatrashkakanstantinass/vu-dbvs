@@ -17,10 +17,6 @@ class User:
     user_status: str = "OK"
 
     @staticmethod
-    def create():
-        return User()
-
-    @staticmethod
     def get():
         with get_cursor() as cursor:
             cursor.execute(
