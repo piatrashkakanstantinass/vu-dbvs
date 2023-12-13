@@ -148,7 +148,7 @@ def delete_post(blog_id):
 def post_prompt(post=None):
     title = prompts.inputMandatory("Pick title", getattr(post, "title", ""))
     content = prompts.inputOptional("Content", getattr(post, "content", ""))
-    return Post(0, title, content, 0, 0, 0)
+    return Post(0, title, content, 0, 0, 0, 0)
 
 
 def pick_post(blog_id):

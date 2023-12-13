@@ -13,24 +13,21 @@ class Post:
     blog_id: int
     like_count: int
     dislike_count: int
+    comment_count: int
 
     @staticmethod
     def get(blog_id_p):
         with get_cursor() as cursor:
             cursor.execute(
-                """SELECT Posts.post_id,
+                """SELECT post_id,
                           title,
                           content,
-                          Posts.blog_id,
-                          COUNT(DISTINCT r1.user_id),
-                          COUNT(DISTINCT r2.user_id)
-                   FROM Posts
-                   LEFT JOIN Reactions r1 ON r1.post_id = Posts.post_id
-                   LEFT JOIN Reactions r2 ON r2.post_id = Posts.post_id
-                   WHERE Posts.blog_id = %s
-                   AND (r1.likes = TRUE OR r1.likes IS NULL)
-                   AND (r2.likes = FALSE OR r2.likes IS NULL)
-                   GROUP BY Posts.post_id""",
+                          blog_id,
+                          like_count,
+                          dislike_count,
+                          comment_count
+                   FROM PostsInfo
+                   WHERE blog_id = %s""",
                 (blog_id_p,),
             )
             posts = []
@@ -41,9 +38,18 @@ class Post:
                 blog_id,
                 like_count,
                 dislike_count,
+                comment_count,
             ) in cursor.fetchall():
                 posts.append(
-                    Post(post_id, title, content, blog_id, like_count, dislike_count)
+                    Post(
+                        post_id,
+                        title,
+                        content,
+                        blog_id,
+                        like_count,
+                        dislike_count,
+                        comment_count,
+                    )
                 )
             return posts
 
