@@ -18,19 +18,19 @@ class Post:
     def get(blog_id_p):
         with get_cursor() as cursor:
             cursor.execute(
-                """SELECT post_id,
+                """SELECT Posts.post_id,
                           title,
                           content,
-                          blog_id,
+                          Posts.blog_id,
                           COUNT(DISTINCT r1.user_id),
                           COUNT(DISTINCT r2.user_id)
                    FROM Posts
-                   JOIN Blogs ON Posts.blog_id = Blogs.blog_id
                    LEFT JOIN Reactions r1 ON r1.post_id = Posts.post_id
                    LEFT JOIN Reactions r2 ON r2.post_id = Posts.post_id
                    WHERE Posts.blog_id = %s
-                   AND r1.likes = TRUE
-                   AND r2.likes = FALSE""",
+                   AND (r1.likes = TRUE OR r1.likes IS NULL)
+                   AND (r2.likes = FALSE OR r2.likes IS NULL)
+                   GROUP BY Posts.post_id""",
                 (blog_id_p,),
             )
             posts = []

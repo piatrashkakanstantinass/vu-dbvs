@@ -133,7 +133,7 @@ def update_post(blog_id):
     post = pick_post(blog_id)
     if post == None:
         return
-    new_post = post_prompt(blog_id)
+    new_post = post_prompt(post)
     new_post.post_id = post.post_id
     Post.update(new_post)
 
