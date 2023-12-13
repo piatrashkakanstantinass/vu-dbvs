@@ -4,3 +4,4 @@
 *.drawio.dtmp
 venv/
 .env
+__pycache__

@@ -1,6 +1,5 @@
 prompt-toolkit==3.0.36
-psycopg2-binary==2.9.9
-python-dotenv==1.0.0
+psycopg2==2.9.9
 questionary==2.0.1
 tabulate==0.9.0
 wcwidth==0.2.12

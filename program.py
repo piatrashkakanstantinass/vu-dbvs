@@ -11,6 +11,8 @@ CONNECTION_STRING = os.getenv("CONNECTION_STRING")
 # dbname = studentu host=pgsql3.mif passowrd=pswd
 
 selected_blog_id = None
+selected_post_id = None
+selected_user_id = None
 
 
 class DBContext:
@@ -124,6 +126,10 @@ def update_user():
             curr_last_name,
             user_status,
         ) = db_list_users(cursor, username)[0]
+        if curr_first_name == None:
+            curr_first_name = ""
+        if curr_last_name == None:
+            curr_last_name = ""
         new_email = questionary.text("New email?", default=curr_email).unsafe_ask()
         new_first_name = questionary.text(
             "New first name?", default=curr_first_name
@@ -299,6 +305,14 @@ def db_list_posts(cursor):
     return cursor.fetchall()
 
 
+def db_create_post(cursor, title: str, content: str):
+    global selected_blog_id
+    cursor.execute(
+        "INSERT INTO Posts (title, content, blog_id) VALUES(%s, %s, %s)",
+        (title, content, selected_blog_id),
+    )
+
+
 def list_posts():
     with DBContext() as cursor:
         print_posts(db_list_posts(cursor))
@@ -312,8 +326,69 @@ def print_posts(posts):
     questionary.print(table)
 
 
+def create_post():
+    with DBContext() as cursor:
+        title = questionary.text("Enter post title:").unsafe_ask()
+        content = questionary.text("Enter post content:").unsafe_ask()
+        db_create_post(cursor, title, content)
+        cursor.connection.commit()
+    questionary.print("Post created")
+
+
+def view_user_stats():
+    with DBContext() as cursor:
+        cursor.execute("REFRESH MATERIALIZED VIEW UsersStats")
+        cursor.execute(
+            "SELECT username, user_status, created_at, blog_count, post_count, received_comment_count FROM UsersStats"
+        )
+        print_user_stats(cursor.fetchall())
+
+
+def print_user_stats(stats):
+    table = tabulate(
+        stats,
+        headers=[
+            "Username",
+            "Status",
+            "Created at",
+            "Blog count",
+            "Post count",
+            "Received comment count",
+        ],
+    )
+    questionary.print(table)
+
+
+def list_comments():
+    pass
+
+
+comment_options_menu = OptionMenu("Comment section")
+comment_options_menu.add_option("list comments", list_comments)
+
+
+def go_to_comments():
+    global selected_blog_id
+    global selected_post_id
+    global selected_user_id
+    with DBContext() as cursor:
+        post_titles = [post[0] for post in db_list_posts(cursor)]
+        if len(post_titles) == 0:
+            questionary.print("No posts left!")
+            return
+        post_title = questionary.select("Which post?", post_titles).unsafe_ask()
+        cursor.execute(
+            "SELECT post_id from Posts WHERE title = %s AND blog_id = %s",
+            (post_title, selected_blog_id),
+        )
+        selected_post_id = cursor.fetchone()[0]
+    comment_options_menu.display_menu()
+
+
 post_options_menu = OptionMenu("Post actions")
 post_options_menu.add_option("list posts", list_posts)
+post_options_menu.add_option("post something new", create_post)
+post_options_menu.add_option("go to comments", go_to_comments)
 
 
 def go_to_posts():
@@ -347,6 +422,7 @@ top_level_options_menu.add_option("unflag user", unflag_user)
 top_level_options_menu.add_option(
     "delete user and share blogs", delete_user_and_share_blogs
 )
+top_level_options_menu.add_option("view user stats", view_user_stats)
 top_level_options_menu.add_option("blog actions...", blog_options_menu.display_menu)
 
 
