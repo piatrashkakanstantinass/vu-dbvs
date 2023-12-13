@@ -1,22 +1,4 @@
 """
-blog actions
-
-blog actions
-select whose blog you are viewing
-
-  list blogs
-  create blog
-  update blog
-  delete blog
-
-post actions
-select which blog
-
-  list posts
-  create post
-  update post
-  delete post
-
 post actions
 selct which post
 
@@ -27,9 +9,10 @@ comments
   delete comment
 
 """
+from tabulate import tabulate
 
 from .helper.menu import Menu
-from .helper import prompts
+from .helper import prompts, db
 
 from .entities.user import User
 from .entities.blog import Blog
@@ -176,11 +159,27 @@ def go_to_posts(user_id):
     post_actions_menu.show(blog.blog_id)
 
 
+def show_user_stats(state):
+    with db.get_cursor() as cursor:
+        cursor.execute("REFRESH MATERIALIZED VIEW UsersStats")
+        cursor.execute(
+            "SELECT username, blog_count, post_count, received_comment_count FROM UsersStats"
+        )
+        entries = cursor.fetchall()
+        cursor.connection.commit()
+    print(
+        tabulate(
+            entries, ["Username", "Blog count", "Post count", "Received comment count"]
+        )
+    )
+
+
 user_actions_menu = Menu()
 user_actions_menu.add_option("list users", lambda s: print(User.get_table(User.get())))
 user_actions_menu.add_option("create user", create_user)
 user_actions_menu.add_option("update user", update_user)
 user_actions_menu.add_option("delete user", delete_user)
+user_actions_menu.add_option("show user stats", show_user_stats)
 
 
 post_actions_menu = Menu()
