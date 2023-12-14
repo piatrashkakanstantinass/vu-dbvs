@@ -224,13 +224,11 @@ AS SELECT p.post_id,
           p.content,
           p.created_at,
           p.blog_id,
-          COUNT(DISTINCT r1.user_id),
-          COUNT(DISTINCT r2.user_id),
+          COUNT(DISTINCT CASE WHEN r1.likes = TRUE THEN r1.user_id END),
+          COUNT(DISTINCT CASE WHEN r2.likes = FALSE THEN r2.user_id END),
           COUNT(DISTINCT Comments.comment_id)
 FROM Posts p
 LEFT JOIN Reactions r1 ON r1.post_id = p.post_id
 LEFT JOIN Reactions r2 ON r2.post_id = p.post_id
 LEFT JOIN Comments ON Comments.post_id = p.post_id
-WHERE (r1.likes = TRUE OR r1.likes IS NULL)
-AND (r2.likes = FALSE OR r2.likes IS NULL)
 GROUP BY p.post_id;

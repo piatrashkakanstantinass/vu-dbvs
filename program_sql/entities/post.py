@@ -99,3 +99,16 @@ class Post:
                 (id,),
             )
             return cursor.fetchone()
+
+    @staticmethod
+    def post_reaction(id, user_id, likes: bool):
+        with get_cursor() as cursor:
+            cursor.execute(
+                """
+                INSERT INTO Reactions (post_id, user_id, likes) VALUES(%(post_id)s, %(user_id)s, %(likes)s)
+                ON CONFLICT (user_id, post_id) DO UPDATE
+                SET likes = EXCLUDED.likes
+                """,
+                {"post_id": id, "user_id": user_id, "likes": likes},
+            )
+            cursor.connection.commit()

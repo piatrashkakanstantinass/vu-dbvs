@@ -131,7 +131,7 @@ def delete_post(blog_id):
 
 def post_prompt(post=None):
     title = prompts.inputMandatory("Pick title", getattr(post, "title", ""))
-    content = prompts.inputOptional("Content", getattr(post, "content", ""))
+    content = prompts.inputMandatory("Content", getattr(post, "content", ""))
     return Post(0, title, content, 0, 0, 0, 0)
 
 
@@ -216,6 +216,20 @@ def show_post_likes_dislikes(post_id):
     print(f"{likes} likes, {dislikes} dislikes")
 
 
+def smash_like(post_id):
+    smash_reaction(post_id, True)
+
+
+def smash_dislike(post_id):
+    smash_reaction(post_id, False)
+
+
+def smash_reaction(post_id, like: bool):
+    print("Who is reacting?")
+    user = pick_user()
+    Post.post_reaction(post_id, user.user_id, like)
+
+
 def show_user_stats(state):
     with db.get_cursor() as cursor:
         cursor.execute("REFRESH MATERIALIZED VIEW UsersStats")
@@ -246,6 +260,8 @@ post_view_actions_menu.add_option("post comment", create_comment)
 post_view_actions_menu.add_option("update comment", update_comment)
 post_view_actions_menu.add_option("delete comment", delete_comment)
 post_view_actions_menu.add_option("show likes/dislikes", show_post_likes_dislikes)
+post_view_actions_menu.add_option("smash like", smash_like)
+post_view_actions_menu.add_option("smash dislike", smash_dislike)
 
 
 post_actions_menu = Menu()
