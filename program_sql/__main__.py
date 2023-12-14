@@ -211,6 +211,11 @@ def go_to_post_actions(blog_id):
     post_view_actions_menu.show(post.post_id)
 
 
+def show_post_likes_dislikes(post_id):
+    likes, dislikes = Post.like_dislike_count(post_id)
+    print(f"{likes} likes, {dislikes} dislikes")
+
+
 def show_user_stats(state):
     with db.get_cursor() as cursor:
         cursor.execute("REFRESH MATERIALIZED VIEW UsersStats")
@@ -240,6 +245,7 @@ post_view_actions_menu.add_option(
 post_view_actions_menu.add_option("post comment", create_comment)
 post_view_actions_menu.add_option("update comment", update_comment)
 post_view_actions_menu.add_option("delete comment", delete_comment)
+post_view_actions_menu.add_option("show likes/dislikes", show_post_likes_dislikes)
 
 
 post_actions_menu = Menu()

@@ -90,3 +90,12 @@ class Post:
         with get_cursor() as cursor:
             cursor.execute("DELETE FROM Posts WHERE post_id = %s", (id,))
             cursor.connection.commit()
+
+    @staticmethod
+    def like_dislike_count(id) -> tuple[int, int]:
+        with get_cursor() as cursor:
+            cursor.execute(
+                "SELECT like_count, dislike_count FROM PostsInfo WHERE post_id = %s",
+                (id,),
+            )
+            return cursor.fetchone()
