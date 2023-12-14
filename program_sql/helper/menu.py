@@ -51,3 +51,6 @@ class Menu:
                 print(e.pgerror)
             except psycopg2.errors.RaiseException as e:
                 print(e.pgerror)
+            except psycopg2.errors.Error as e:
+                print("Unexpected error!")
+                print(e.pgerror)
