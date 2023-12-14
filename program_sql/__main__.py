@@ -17,6 +17,7 @@ from .helper import prompts, db
 from .entities.user import User
 from .entities.blog import Blog
 from .entities.post import Post
+from .entities.comment import Comment
 
 
 def create_user(state):
@@ -145,6 +146,50 @@ def pick_post(blog_id):
             return post
 
 
+def create_comment(post_id):
+    comment = comment_prompt(ask_for_user=True)
+    comment.post_id = post_id
+    Comment.create(comment)
+
+
+def update_comment(post_id):
+    comment = pick_comment(post_id)
+    if comment == None:
+        return
+    new_comment = comment_prompt(comment)
+    new_comment.comment_id = comment.comment_id
+    Comment.update(new_comment)
+
+
+def delete_comment(post_id):
+    comment = pick_comment(post_id)
+    if comment == None:
+        return
+    Comment.delete(comment.comment_id)
+
+
+def comment_prompt(comment=None, ask_for_user=False):
+    user = None
+    if ask_for_user:
+        print("Who's commenting?")
+        user = pick_user()
+    content = prompts.inputMandatory("Comment", getattr(comment, "content", ""))
+    return Comment(
+        0, content, getattr(user, "user_id", 0), 0, getattr(user, "username", ""), 0
+    )
+
+
+def pick_comment(post_id):
+    comments = Comment.get(post_id)
+    comment_contents = [comment.content for comment in comments]
+    content = prompts.select("Pick comment", comment_contents)
+    if content == None:
+        return
+    for comment in comments:
+        if comment.content == content:
+            return comment
+
+
 def go_to_blogs(state):
     user = pick_user()
     if user == None:
@@ -157,6 +202,13 @@ def go_to_posts(user_id):
     if blog == None:
         return
     post_actions_menu.show(blog.blog_id)
+
+
+def go_to_post_actions(blog_id):
+    post = pick_post(blog_id)
+    if post == None:
+        return
+    post_view_actions_menu.show(post.post_id)
 
 
 def show_user_stats(state):
@@ -181,12 +233,21 @@ user_actions_menu.add_option("update user", update_user)
 user_actions_menu.add_option("delete user", delete_user)
 user_actions_menu.add_option("show user stats", show_user_stats)
 
+post_view_actions_menu = Menu()
+post_view_actions_menu.add_option(
+    "list comments", lambda s: print(Comment.get_table(Comment.get(s)))
+)
+post_view_actions_menu.add_option("post comment", create_comment)
+post_view_actions_menu.add_option("update comment", update_comment)
+post_view_actions_menu.add_option("delete comment", delete_comment)
+
 
 post_actions_menu = Menu()
 post_actions_menu.add_option("list posts", lambda s: print(Post.get_table(Post.get(s))))
 post_actions_menu.add_option("create post", create_post)
 post_actions_menu.add_option("update post", update_post)
 post_actions_menu.add_option("delete post", delete_post)
+post_actions_menu.add_option("view post (comment section)", go_to_post_actions)
 
 blog_actions_menu = Menu()
 blog_actions_menu.add_option("list blogs", lambda s: print(Blog.get_table(Blog.get(s))))
