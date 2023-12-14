@@ -112,3 +112,12 @@ class Post:
                 {"post_id": id, "user_id": user_id, "likes": likes},
             )
             cursor.connection.commit()
+
+    @staticmethod
+    def remove_reaction(id, user_id):
+        with get_cursor() as cursor:
+            cursor.execute(
+                "DELETE FROM Reactions WHERE user_id = %s AND post_id = %s",
+                (user_id, id),
+            )
+            cursor.connection.commit()

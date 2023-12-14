@@ -1,14 +1,3 @@
-"""
-post actions
-selct which post
-
-comments
-  list comments
-  create comment (get username)
-  update comment
-  delete comment
-
-"""
 from tabulate import tabulate
 
 from .helper.menu import Menu
@@ -226,8 +215,46 @@ def smash_dislike(post_id):
 
 def smash_reaction(post_id, like: bool):
     print("Who is reacting?")
-    user = pick_user()
-    Post.post_reaction(post_id, user.user_id, like)
+    user = pick_user_id_by_reaction(post_id, for_likes=like)
+    if user == None:
+        return
+    Post.post_reaction(post_id, user, like)
+
+
+def pick_user_id_by_reaction(post_id, only_reacted=False, for_likes=False):
+    with db.get_cursor() as cursor:
+        if only_reacted:
+            cursor.execute(
+                "SELECT DISTINCT Users.user_id, username FROM Users JOIN Reactions ON Users.user_id = Reactions.user_id WHERE Reactions.post_id = %s",
+                (post_id,),
+            )
+        else:
+            cursor.execute(
+                """
+                SELECT user_id, username FROM Users
+                EXCEPT
+                SELECT DISTINCT Users.user_id, username FROM Users
+                    LEFT JOIN Reactions ON Users.user_id = Reactions.user_id
+                    WHERE Reactions.post_id = %(post_id)s AND Reactions.likes = %(likes)s
+                """,
+                {"post_id": post_id, "likes": for_likes},
+            )
+        users = cursor.fetchall()
+    usernames = [user[1] for user in users]
+    username = prompts.select("Pick user", usernames)
+    if username == None:
+        return
+    for user in users:
+        if user[1] == username:
+            return user[0]
+
+
+def remove_reaction(post_id):
+    print("Pick who reacted")
+    user = pick_user_id_by_reaction(post_id, only_reacted=True)
+    if user == None:
+        return
+    Post.remove_reaction(post_id, user)
 
 
 def show_user_stats(state):
@@ -262,6 +289,7 @@ post_view_actions_menu.add_option("delete comment", delete_comment)
 post_view_actions_menu.add_option("show likes/dislikes", show_post_likes_dislikes)
 post_view_actions_menu.add_option("smash like", smash_like)
 post_view_actions_menu.add_option("smash dislike", smash_dislike)
+post_view_actions_menu.add_option("remove reaction", remove_reaction)
 
 
 post_actions_menu = Menu()
